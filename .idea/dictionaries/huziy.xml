@@ -3,10 +3,12 @@
     <words>
       <w>basemap</w>
       <w>clev</w>
+      <w>cmap</w>
       <w>colorbar</w>
       <w>imname</w>
       <w>lons</w>
       <w>moyenne</w>
+      <w>rotpole</w>
       <w>varname</w>
       <w>vname</w>
     </words>

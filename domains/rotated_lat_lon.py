@@ -5,6 +5,7 @@ __author__ = 'huziy'
 import numpy as np
 from geo import lat_lon
 
+
 class RotatedLatLon():
     def __init__(self, lon1=180.0, lat1=0.0, lon2=180.0, lat2=0.0, **kwargs):
         """
@@ -119,17 +120,14 @@ class RotatedLatLon():
         return lat_lon.cartesian_to_lon_lat(rot_pole.A1)
 
 
-
-    def get_basemap_object_for_lons_lats(self, lons2d = None, lats2d = None, resolution = "i"):
+    def get_basemap_object_for_lons_lats(self, lons2d=None, lats2d=None, resolution="i", round=False):
         from mpl_toolkits.basemap import Basemap
 
         lon0, _ = self.get_true_pole_coords_in_rotated_system()
         o_lon_p, o_lat_p = self.get_north_pole_coords()
         return Basemap(projection="rotpole", lon_0=lon0 - 180, o_lon_p=o_lon_p, o_lat_p=o_lat_p,
                        llcrnrlon=lons2d[0, 0], llcrnrlat=lats2d[0, 0],
-                       urcrnrlon=lons2d[-1, -1], urcrnrlat=lats2d[-1, -1], resolution = resolution)
-
-
+                       urcrnrlon=lons2d[-1, -1], urcrnrlat=lats2d[-1, -1], resolution=resolution, round=round)
 
 
 def main():
