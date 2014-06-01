@@ -35,6 +35,7 @@ class Tile(object):
         self.empty_tile = False
         self.dtype = np.uint8
         self.varname = varname
+	self.fill_value = -1
         if len(fnames) > 0:
             self.file_path = os.path.join(day_folder, fnames[0])
             ds = SD(self.file_path)
@@ -56,7 +57,7 @@ class Tile(object):
         ds = SD(self.file_path)
         data = ds.select(self.varname)[slices]
 
-        data = np.ma.masked_where((data < 0) | (data > 100), data)
+        data[(data < 0) | (data > 100)] = -1
         ds.end()
         return data
 
@@ -81,7 +82,9 @@ def calculate_seasonal_mean_for_tile(h=0, v=0,
     dates = [d for d in dates if (d.year >= start_year) and (d.year <= end_year) and (d.month in months)]
 
 
-    the_mean = np.ma.asarray([Tile(h=h, v=v, data_folder=path, date=d)[:] for d in dates]).mean(axis=0)
+    arr_stack = biggus.ArrayStack(np.array([Tile(h=h, v=v, data_folder=path, date=d) for d in dates]))
+
+    the_mean = biggus.mean(arr_stack, axis=0)
 
 
     folder_path = "/home/huziy/DATA/seasonal_modis_snow_albedo/{}".format(season_name)
@@ -95,9 +98,9 @@ def calculate_seasonal_mean_for_tile(h=0, v=0,
     ds.createDimension("x", the_mean.shape[1])
     var_nc = ds.createVariable("I6", the_mean.dtype, ("y", "x"))
     var_nc.missing_value = -1
-    the_mean[the_mean.mask] = var_nc.missing_value
-
-    var_nc[:] = the_mean
+#    the_mean[the_mean.mask] = var_nc.missing_value
+    biggus.save([the_mean, ], [var_nc, ])
+    
     ds.close()
 
 
@@ -135,7 +138,7 @@ def interpolate_data_to():
 
 def check_seasonal_mean():
     #calculate_seasonal_mean_for_tile(v=5, h=8, season_name="DJF", months=[1,2,12], start_year=2001, end_year=2010)
-    calculate_seasonal_means_for_all_tiles(season_name="DJF", months=[1, 2, 12], start_year=2001, end_year=2001)
+    calculate_seasonal_means_for_all_tiles(season_name="DJF", months=[1, 2, 12], start_year=2001, end_year=2010)
     calculate_seasonal_means_for_all_tiles(season_name="MAM", months=[3, 4, 5], start_year=2001, end_year=2010)
     calculate_seasonal_means_for_all_tiles(season_name="JJA", months=[6, 7, 8], start_year=2001, end_year=2010)
     calculate_seasonal_means_for_all_tiles(season_name="SON", months=[9, 10, 11], start_year=2001, end_year=2010)

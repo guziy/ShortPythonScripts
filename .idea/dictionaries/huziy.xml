@@ -5,10 +5,18 @@
       <w>clev</w>
       <w>cmap</w>
       <w>colorbar</w>
+      <w>fname</w>
+      <w>fnames</w>
+      <w>fpath</w>
       <w>imname</w>
+      <w>kdtree</w>
       <w>lons</w>
       <w>moyenne</w>
+      <w>ndays</w>
+      <w>netcdf</w>
       <w>rotpole</w>
+      <w>snowdepth</w>
+      <w>snowmass</w>
       <w>varname</w>
       <w>vname</w>
     </words>
