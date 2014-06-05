@@ -33,7 +33,7 @@ class Tile(object):
         fnames = [fname for fname in os.listdir(day_folder)
                   if fname.endswith("hdf") and "h{0:02d}v{1:02d}".format(h, v) in fname]
         self.empty_tile = False
-        self.dtype = np.int
+        self.dtype = np.dtype("int32")
         self.varname = varname
 		
         self.fill_value = -1
@@ -53,7 +53,7 @@ class Tile(object):
     def __getitem__(self, slices):
         if self.empty_tile:
             if self.empty_tile_arr is None:
-                self.empty_tile_arr = np.ma.masked_all(self.shape)
+                self.empty_tile_arr = -np.ones(self.shape, dtype=np.int32)
 
             return self.empty_tile_arr[slices]
         ds = SD(self.file_path)
@@ -63,7 +63,7 @@ class Tile(object):
 
         data[(data < 0) | (data > 100)] = -1
         ds.end()
-        return biggus.NumpyArrayAdapter(data)
+        return data
 
 
 
@@ -88,7 +88,7 @@ def calculate_seasonal_mean_for_tile(h=0, v=0,
 
     dates = [d for d in dates if (d.year >= start_year) and (d.year <= end_year) and (d.month in months)]
 
-    arr_stack = biggus.ArrayStack(np.array([Tile(h=h, v=v, data_folder=path, date=d) for d in dates]))
+    arr_stack = biggus.ArrayStack(np.array([biggus.NumpyArrayAdapter(Tile(h=h, v=v, data_folder=path, date=d)) for d in dates]))
 
     the_mean = biggus.mean(arr_stack, axis=0)
 	#the_mean = get_seasonal_mean_for_tile_without_biggus()
