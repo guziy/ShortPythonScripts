@@ -33,9 +33,11 @@ class Tile(object):
         fnames = [fname for fname in os.listdir(day_folder)
                   if fname.endswith("hdf") and "h{0:02d}v{1:02d}".format(h, v) in fname]
         self.empty_tile = False
-        self.dtype = np.uint8
+        self.dtype = np.int
         self.varname = varname
-	self.fill_value = -1
+		
+        self.fill_value = -1
+        
         if len(fnames) > 0:
             self.file_path = os.path.join(day_folder, fnames[0])
             ds = SD(self.file_path)
@@ -57,9 +59,11 @@ class Tile(object):
         ds = SD(self.file_path)
         data = ds.select(self.varname)[slices]
 
+        print data.dtype
+
         data[(data < 0) | (data > 100)] = -1
         ds.end()
-        return data
+        return biggus.NumpyArrayAdapter(data)
 
 
 
@@ -68,7 +72,10 @@ def calculate_seasonal_means_for_all_tiles(season_name=None, months=None, start_
                                            path="/b2_fs2/huziy/PythonProjects/DATA/modis/n5eil01u.ecs.nsidc.org/SAN/MOST/MOD10A1.005"):
     for h in range(tile_hmax+1):
         for v in range(tile_vmax+1):
-            calculate_seasonal_mean_for_tile(h=h, v=v, season_name=season_name, path=path, months=months,
+         	#calculate_seasonal_mean_for_tile_without_biggus(h=h, v=v, season_name=season_name, path=path, months=months,
+            #                                 start_year=start_year, end_year=end_year)
+
+        	calculate_seasonal_mean_for_tile(h=h, v=v, season_name=season_name, path=path, months=months,
                                              start_year=start_year, end_year=end_year)
 
 
@@ -76,18 +83,17 @@ def calculate_seasonal_means_for_all_tiles(season_name=None, months=None, start_
 def calculate_seasonal_mean_for_tile(h=0, v=0,
                                path="/b2_fs2/huziy/PythonProjects/DATA/modis/n5eil01u.ecs.nsidc.org/SAN/MOST/MOD10A1.005",
                                start_year=2001, end_year=2010, season_name="DJF", months=None):
-
+	
     dates = [datetime.strptime(folder_name, "%Y.%m.%d") for folder_name in os.listdir(path)]
 
     dates = [d for d in dates if (d.year >= start_year) and (d.year <= end_year) and (d.month in months)]
 
-
     arr_stack = biggus.ArrayStack(np.array([Tile(h=h, v=v, data_folder=path, date=d) for d in dates]))
 
     the_mean = biggus.mean(arr_stack, axis=0)
+	#the_mean = get_seasonal_mean_for_tile_without_biggus()
 
-
-    folder_path = "/home/huziy/DATA/seasonal_modis_snow_albedo/{}".format(season_name)
+    folder_path = "/home/huziy/DATA/seasonal_modis_snow_albedo_biggus/{}".format(season_name)
     if not os.path.isdir(folder_path):
         os.makedirs(folder_path)
 
@@ -105,14 +111,46 @@ def calculate_seasonal_mean_for_tile(h=0, v=0,
 
 
 
+def calculate_seasonal_mean_for_tile_without_biggus(h=0, v=0,
+					path="/b2_fs2/huziy/PythonProjects/DATA/modis/n5eil01u.ecs.nsidc.org/SAN/MOST/MOD10A1.005",
+					start_year=2001, end_year=2010, months=None, season_name=""):
+    
+    dates = [datetime.strptime(folder_name, "%Y.%m.%d") for folder_name in os.listdir(path)]
+	
+    #select dates for the season
+    dates = [d for d in dates if (d.year >= start_year) and (d.year <= end_year) and (d.month in months)]
+
+
+    the_mean = Tile(date=dates.pop(), h=h, v=v, data_folder=path)[:]
+    counter = 1.0
+    import numexpr as ne
+    for d in dates:
+        print d, h, v
+        current =  Tile(date=d, h=h, v=v, data_folder=path)[:]
+        the_mean = ne.evaluate("the_mean + current")
+        counter += 1.0
+    the_mean /= counter
+
+	
+    out_folder_path = "/home/huziy/DATA/seasonal_modis_snow_albedo/{}".format(season_name)
+
+    if not os.path.isdir(out_folder_path):
+        os.makedirs(out_folder_path)
+
+	
 
 
 
-
-
-
-
-
+    ds = Dataset(os.path.join(out_folder_path, "{}_h{}_v{}.nc".format(season_name, h, v)), mode="w")
+    ds.createDimension("y", the_mean.shape[0])
+    ds.createDimension("x", the_mean.shape[1])
+    var_nc = ds.createVariable("I6", the_mean.dtype, ("y", "x"))
+    var_nc.missing_value = -1
+    var_nc[:] = the_mean
+#    the_mean[the_mean.mask] = var_nc.missing_value
+#    biggus.save([the_mean, ], [var_nc, ])
+    
+    ds.close()
 
 
 
@@ -129,7 +167,7 @@ def get_data_for_date(date=None, path="/b2_fs2/huziy/PythonProjects/DATA/modis/n
         rows.append(row)
 
     big_arr = biggus.LinearMosaic(rows, axis=0)
-    return big_arr.masked_array()
+    return big_arr
 
 
 def interpolate_data_to():
