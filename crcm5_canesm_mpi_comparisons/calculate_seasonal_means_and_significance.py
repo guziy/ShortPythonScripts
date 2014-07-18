@@ -4,8 +4,8 @@ from datetime import datetime
 from netCDF4 import Dataset
 from matplotlib import gridspec
 from matplotlib import cm
-from mpl_toolkits.basemap import maskoceans, Basemap
 from matplotlib.colors import BoundaryNorm
+from mpl_toolkits.basemap import Basemap
 from rpn import level_kinds
 from rpn.rpn import RPN
 import numpy as np
@@ -28,7 +28,7 @@ import os
 fig_size = (25, 7)
 
 
-#convenience
+# convenience
 period_to_label = {
     (1981, 2010): "C",
     (2041, 2070): "F1",
@@ -108,7 +108,6 @@ def calculate(var_names=None, start_year=None, end_year=None, file_prefix="pm",
     :param end_year:
     """
 
-
     if not os.path.isdir(nc_cache_folder):
         os.mkdir(nc_cache_folder)
 
@@ -130,7 +129,7 @@ def calculate(var_names=None, start_year=None, end_year=None, file_prefix="pm",
 
             month_folder_names = [mfn for mfn in os.listdir(data_folder)
                                   if get_year_and_month_from_name(fname=mfn)[0] == year and
-                                     get_year_and_month_from_name(fname=mfn)[1] in month_list]
+                                  get_year_and_month_from_name(fname=mfn)[1] in month_list]
 
             month_folder_paths = [os.path.join(data_folder, mfn) for mfn in month_folder_names]
 
@@ -234,16 +233,16 @@ def get_clev_by_name(varname, delta=False):
             x = np.arange(-1, 0, 0.25).tolist() + [-0.05, ]
             return x + [-xi for xi in reversed(x)]
         elif varname == "TT":
-            x = [-5,-4,-3, -2, -1, 1, 2, 3, 4, 5]
-            return x 
+            x = [-5, -4, -3, -2, -1, 1, 2, 3, 4, 5]
+            return x
         elif varname == "PR":
             x = [-3, -2.5, -1.5, -0.8, -0.4, -0.2]
             return x + [-xi for xi in reversed(x)]
         elif varname == "AH":
-	    x = [-100, -80, -50, -10, -5, -1]
+            x = [-100, -80, -50, -10, -5, -1]
             return x + [-xi for xi in reversed(x)]
         elif varname == "AV":
-	    x = [-100, -80, -50, -10, -5, -1]
+            x = [-100, -80, -50, -10, -5, -1]
             return x + [-xi for xi in reversed(x)]
 
 
@@ -264,11 +263,10 @@ def get_clev_by_name(varname, delta=False):
             return [-25, -15, -10, -5, -3, -2, -1, 0, 1, 2, 3, 5, 10, 15, 25]
         elif varname == "PR":
             return [0, 0.2, 0.5, 1, 2, 5, 8, 10]
-
-	elif varname in ["AH"]:
-	    return [-20, -10, 0, 10, 30, 50, 100, 150]
-	elif varname == "AV":
-	    return [0, 10, 30, 50, 80, 100, 150]
+        elif varname in ["AH"]:
+            return [-20, -10, 0, 10, 30, 50, 100, 150]
+        elif varname == "AV":
+            return [0, 10, 30, 50, 80, 100, 150]
 
 
 def get_var_label(varname):
@@ -285,11 +283,11 @@ def get_var_label(varname):
     elif varname == "SN":
         return "Snow fall"
     elif varname == "TT":
-	return "2m Air temperature"
+        return "2m Air temperature"
     elif varname == "AH":
-	return "Sensible heat flux"
+        return "Sensible heat flux"
     elif varname == "AV":
-	return "Latent heat flux"
+        return "Latent heat flux"
     else:
         return varname
 
@@ -315,7 +313,7 @@ def plot(period_to_data_future=None, period_to_data_current=None, exp_name=None,
     period_to_season_to_snow_depth = {}
 
     land_sea_glaciers_mask = get_land_sea_glaciers_mask_from_geophysics_file()
-		#	path="/b10_fs1/winger/Arctic/OMSC26_Can_long_new_v01/Geophys/land_sea_mask_free")
+    #	path="/b10_fs1/winger/Arctic/OMSC26_Can_long_new_v01/Geophys/land_sea_mask_free")
 
     #plot seasonal means for the current climate
     for p, data in period_to_data_current.iteritems():
@@ -345,7 +343,7 @@ def plot(period_to_data_future=None, period_to_data_current=None, exp_name=None,
 
                 snow_depth = np.asarray(data["SD"][season]).mean(axis=0)
                 if vname not in ["TT", "AH", "AV"]:
-		    to_plot = np.ma.masked_where(snow_depth < snowdepth_limit, to_plot)
+                    to_plot = np.ma.masked_where(snow_depth < snowdepth_limit, to_plot)
 
                 if vname == "I5":
                     period_to_season_to_snow_mass[p][season] = to_plot
@@ -399,7 +397,7 @@ def plot(period_to_data_future=None, period_to_data_current=None, exp_name=None,
 
                 if vname not in ["TT", "AH", "AV"]:
                     snow_depth = np.asarray(data["SD"][season]).mean(axis=0)
-               	    to_plot = np.ma.masked_where(snow_depth < snowdepth_limit, to_plot)
+                    to_plot = np.ma.masked_where(snow_depth < snowdepth_limit, to_plot)
 
                 if vname == "I5":
                     period_to_season_to_snow_mass[p][season] = to_plot
@@ -444,7 +442,7 @@ def plot(period_to_data_future=None, period_to_data_current=None, exp_name=None,
             for season, yearly_fields in season_to_data.iteritems():
                 to_plot = np.asarray(yearly_fields).mean(axis=0) - np.asarray(current_data[vname][season]).mean(axis=0)
                 to_plot = np.ma.masked_where(land_sea_glaciers_mask, to_plot)
- 
+
                 if vname not in ["TT", "AH", "AV"]:
                     snow_depth = np.asarray(data["SD"][season]).mean(axis=0)
                     to_plot = np.ma.masked_where(snow_depth < snowdepth_limit, to_plot)
@@ -659,7 +657,6 @@ def plot_max_snow_panel(year_to_season_to_max_snow_depth=None, exp_name=None,
 
     current_data = None
 
-
     land_sea_glaciers_mask = get_land_sea_glaciers_mask_from_geophysics_file()
 
     seasons = year_to_season_to_max_snow_depth.items()[0][1].keys()
@@ -709,7 +706,6 @@ def plot_max_snow_panel(year_to_season_to_max_snow_depth=None, exp_name=None,
         row = 0
         for the_season in seasons:
             to_plot = np.asarray([season_to_field[the_season] for season_to_field in sel_data]).mean(axis=0)
-
 
             ax = fig.add_subplot(gs[row, col])
             if row == 0:
@@ -815,6 +811,7 @@ def calculate_and_plot():
 if __name__ == "__main__":
     assert os.path.isdir(MPI_DRIVEN_DATA_PATH) and os.path.isdir(MPI_DRIVEN_DATA_PATH)
     import matplotlib.pyplot as plt
+
     font_size = 25
     plt.rcParams.update({
         'axes.labelsize': font_size,

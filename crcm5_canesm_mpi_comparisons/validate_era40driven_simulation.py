@@ -26,23 +26,122 @@ default_season_name_to_months = OrderedDict([
     ("SON", (9, 10, 11))
 ])
 
+from modis_download import mcd43c3_seasonal_mean
 
-def validate_albedo(start_year=None, end_year=None):
+def validate_albedo(start_year=None, end_year=None, season_to_months=None, basemap=None,
+                    lons_model=None, lats_model=None,
+                    gl_land_sea_mask=None):
+
+    if season_to_months is None:
+        season_to_months = default_season_name_to_months
+
     varnames = ["AL"]
     model_albedo = model_data_calculator.calculate(var_names=varnames,
                                                    start_year=start_year, end_year=end_year,
                                                    exp_name=ERA40_DRIVEN, exp_data_path=ERA40_DRIVEN_DATA_PATH,
-                                                   season_name_to_months=default_season_name_to_months)
+                                                   season_name_to_months=season_to_months)
 
     #calculate climatology from model data
     model_albedo_clim = OrderedDict()
+
     for vname, season_to_data_for_years in model_albedo.iteritems():
         for season in season_to_data_for_years:
-            model_albedo_clim[season] = np.mean(season_to_data_for_years[season])
+            model_albedo_clim[season] = np.mean(season_to_data_for_years[season], axis=0)
 
 
-            #get and calculate climatology from modis data
-            #TODO:
+    #get and calculate climatology from modis data
+    obs_albedo_clim = mcd43c3_seasonal_mean.get_seasonal_mean_fields(season_name_to_months=season_to_months,
+                                                                     start_year=start_year, end_year=end_year)
+    obs_data_interpolated = OrderedDict()
+    for season, data in obs_albedo_clim.iteritems():
+        obs_data_interpolated[season] = mcd43c3_seasonal_mean.interpolate_data_to(
+            lons_model, lats_model, data
+        )
+
+
+
+    fig = plt.figure()
+    nseasons = len(default_season_name_to_months)
+    gs = GridSpec(3, nseasons + 1, width_ratios=[1.0, ] * nseasons + [0.05, ])
+
+    clevs_val = model_data_calculator.get_clev_by_name("AL")
+    cmap_val = cm.get_cmap("jet", len(clevs_val) - 1)
+    norm_val = BoundaryNorm(clevs_val, len(clevs_val) - 1)
+
+    clevs_diff = model_data_calculator.get_clev_by_name("AL", delta=True)
+    cmap_diff = cm.get_cmap("bwr", len(clevs_diff) - 1)
+    norm_diff = BoundaryNorm(clevs_diff, len(clevs_diff) - 1)
+
+    im = None
+    x, y = basemap(lons_model, lats_model)
+
+    #plot model climatology
+    col = 0
+    for season, data in model_albedo_clim.iteritems():
+        ax = fig.add_subplot(gs[0, col])
+
+        if col == 0:
+            ax.set_ylabel("Model (ERA40-driven)")
+
+        ax.set_title(season)
+
+        to_plot = np.ma.masked_where(gl_land_sea_mask, data)
+        im = basemap.pcolormesh(x, y, to_plot, vmin=clevs_val[0], vmax=clevs_val[-1], cmap=cmap_val,
+                                norm=norm_val)
+        basemap.drawmapboundary(fill_color="0.75")
+        basemap.drawcoastlines()
+        col += 1
+
+
+    #plot obs climatology
+    col = 0
+    bias_clim = OrderedDict()
+    for season, data in obs_data_interpolated.iteritems():
+
+        ax = fig.add_subplot(gs[1, col])
+
+        if col == 0:
+            ax.set_ylabel("Obs (MODIS)")
+
+        to_plot = np.ma.masked_where(gl_land_sea_mask, data)
+        im = basemap.pcolormesh(x, y, to_plot, vmin=clevs_val[0], vmax=clevs_val[-1], cmap=cmap_val,
+                                norm=norm_val)
+        basemap.drawcoastlines()
+        basemap.drawmapboundary(fill_color="0.75")
+
+        bias_clim[season] = model_albedo_clim[season] - to_plot
+        col += 1
+
+    cax = fig.add_subplot(gs[:2, col])
+    plt.colorbar(im, ticks=clevs_val, cax=cax, extend="max")
+
+
+    #plot mod-obs climatology
+    col = 0
+    im = None
+    for season, data in bias_clim.iteritems():
+
+        ax = fig.add_subplot(gs[2, col])
+
+        if col == 0:
+            ax.set_ylabel("Model - Obs")
+
+        im = basemap.pcolormesh(x, y, data, vmin=clevs_diff[0],
+                                vmax=clevs_diff[-1], cmap=cmap_diff,
+                                norm=norm_diff)
+        basemap.drawcoastlines()
+        basemap.drawmapboundary(fill_color="0.75")
+        col += 1
+
+    plt.colorbar(im, ticks=clevs_diff, extend="both", cax=fig.add_subplot(gs[2, col]))
+
+    img_folder = "../images/validation/modis/surface_albedo"
+    if not os.path.isdir(img_folder):
+        os.makedirs(img_folder)
+    img_path = os.path.join(img_folder, "{}-{}.png".format(start_year, end_year))
+    fig.savefig(img_path, dpi=100)
+    plt.close(fig)
+
 
 
 def validate_swe_and_snowdepth(start_year=None, end_year=None, basemap=None, x=None, y=None, gl_land_sea_mask=None):
@@ -388,27 +487,29 @@ def launch_validation():
         "axes.titlesize": font_size
     })
 
-
-
-
     #coordinates
     basemap, lons, lats = model_data_calculator.get_basemap_and_coordinates_from_any_file_in(
         folder=ERA40_DRIVEN_DATA_PATH)
     x, y = basemap(lons, lats)
     land_sea_gl_mask = model_data_calculator.get_land_sea_glaciers_mask_from_geophysics_file()
 
-    validate_swe_and_snowdepth(start_year=1999, end_year=2010, basemap=basemap, x=x, y=y,
-                               gl_land_sea_mask=land_sea_gl_mask)
+    # validate_swe_and_snowdepth(start_year=1999, end_year=2010, basemap=basemap, x=x, y=y,
+    #                            gl_land_sea_mask=land_sea_gl_mask)
+    #
+    # validate_with_cru(start_year=1981, end_year=2010, season_to_months=default_season_name_to_months,
+    #                   basemap=basemap, lons=lons, lats=lats, gl_land_sea_mask=land_sea_gl_mask,
+    #                   model_var_name="TT", cru_var_name="tmp",
+    #                   cru_file="/b2_fs2/huziy/CRUTS3.1/cru_ts_3_10.1901.2009.tmp.dat.nc")
+    #
+    # validate_with_cru(start_year=1981, end_year=2010, season_to_months=default_season_name_to_months,
+    #                   basemap=basemap, lons=lons, lats=lats, gl_land_sea_mask=land_sea_gl_mask,
+    #                   model_var_name="PR", cru_var_name="pre",
+    #                   cru_file="/b2_fs2/huziy/CRUTS3.1/cru_ts_3_10.1901.2009.pre.dat.nc")
 
-    validate_with_cru(start_year=1981, end_year=2010, season_to_months=default_season_name_to_months,
-                      basemap=basemap, lons=lons, lats=lats, gl_land_sea_mask=land_sea_gl_mask,
-                      model_var_name="TT", cru_var_name="tmp",
-                      cru_file="/b2_fs2/huziy/CRUTS3.1/cru_ts_3_10.1901.2009.tmp.dat.nc")
+    lons[lons > 180] -= 360
 
-    validate_with_cru(start_year=1981, end_year=2010, season_to_months=default_season_name_to_months,
-                      basemap=basemap, lons=lons, lats=lats, gl_land_sea_mask=land_sea_gl_mask,
-                      model_var_name="PR", cru_var_name="pre",
-                      cru_file="/b2_fs2/huziy/CRUTS3.1/cru_ts_3_10.1901.2009.pre.dat.nc")
+    validate_albedo(start_year=2001, end_year=2010, season_to_months=default_season_name_to_months,
+                    basemap=basemap, lons_model=lons, lats_model=lats, gl_land_sea_mask=land_sea_gl_mask)
 
 
 if __name__ == "__main__":
